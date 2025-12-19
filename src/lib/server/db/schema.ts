@@ -23,3 +23,4 @@ export const transactions = sqliteTable('transactions', {
 }, (t) => ({
     unq: unique().on(t.date, t.amount, t.currency, t.counterpartyName, t.description)
 }));
+

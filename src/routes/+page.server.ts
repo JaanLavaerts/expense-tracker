@@ -4,11 +4,41 @@ import { categories, transactions, keywords } from '$lib/server/db/schema';
 import { parseBankCSV } from '$lib/server/parser';
 import { fail } from '@sveltejs/kit';
 import { desc, eq, like, and, or, isNull } from 'drizzle-orm';
+import { readdir, stat, mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 export const load: PageServerLoad = async () => {
     const allTransactions = await db.select().from(transactions).orderBy(desc(transactions.date));
     const allCategories = await db.select().from(categories);
     const allKeywords = await db.select().from(keywords);
+
+    // Discover CSV uploads from the /data folder instead of SQLite
+    const dataDir = path.join(process.cwd(), 'data');
+    let uploads: { id: string; filename: string; size: number; uploadedAt: string }[] = [];
+
+    try {
+        const entries = await readdir(dataDir, { withFileTypes: true });
+        const csvFiles = entries.filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.csv'));
+
+        const stats = await Promise.all(
+            csvFiles.map(async (file) => {
+                const fullPath = path.join(dataDir, file.name);
+                const s = await stat(fullPath);
+                return {
+                    id: file.name,
+                    filename: file.name,
+                    size: s.size,
+                    uploadedAt: s.mtime.toISOString(),
+                };
+            })
+        );
+
+        // Sort newest first by uploadedAt
+        uploads = stats.sort((a, b) => (a.uploadedAt < b.uploadedAt ? 1 : -1));
+    } catch (e) {
+        // If the folder doesn't exist yet, just return no uploads
+        uploads = [];
+    }
 
     // Attach keywords to categories
     const categoriesWithKeywords = allCategories.map(c => ({
@@ -18,7 +48,8 @@ export const load: PageServerLoad = async () => {
 
     return {
         transactions: allTransactions,
-        categories: categoriesWithKeywords
+        categories: categoriesWithKeywords,
+        uploads,
     };
 };
 
@@ -33,6 +64,18 @@ export const actions: Actions = {
 
         try {
             const text = await file.text();
+
+            // Persist the original CSV under /data for later download
+            const dataDir = path.join(process.cwd(), 'data');
+            await mkdir(dataDir, { recursive: true });
+
+            const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `${timestamp}_${safeName || 'upload.csv'}`;
+            const fullPath = path.join(dataDir, filename);
+
+            await writeFile(fullPath, text, 'utf-8');
+
             const parsed = parseBankCSV(text);
 
             // Fetch all keywords for matching
