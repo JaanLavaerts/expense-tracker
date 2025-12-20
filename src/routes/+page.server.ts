@@ -242,7 +242,57 @@ export const actions: Actions = {
         if (!id) return fail(400, { missing: true });
 
         try {
+            // Fetch the keyword before deleting so we know what to re-evaluate
+            const [keywordToDelete] = await db
+                .select()
+                .from(keywords)
+                .where(eq(keywords.id, id));
+
             await db.delete(keywords).where(eq(keywords.id, id));
+
+            if (keywordToDelete) {
+                // Re-evaluate transactions that were likely categorized via this keyword.
+                // Strategy: for all transactions currently in this keyword's category AND
+                // whose text still contains the deleted keyword, recompute their category
+                // using the remaining keyword rules.
+
+                const { categoryId, keyword } = keywordToDelete;
+
+                if (categoryId && keyword) {
+                    // Fetch remaining keywords after deletion
+                    const remainingKeywords = await db.select().from(keywords);
+
+                    // Find candidate transactions
+                    const affectedTransactions = await db
+                        .select()
+                        .from(transactions)
+                        .where(
+                            and(
+                                eq(transactions.categoryId, categoryId),
+                                or(
+                                    like(transactions.description, `%${keyword}%`),
+                                    like(transactions.counterpartyName, `%${keyword}%`)
+                                )
+                            )
+                        );
+
+                    for (const t of affectedTransactions) {
+                        const searchStr = `${t.counterpartyName ?? ''} ${
+                            t.description ?? ''
+                        }`.toLowerCase();
+
+                        const match = remainingKeywords.find((k) =>
+                            searchStr.includes(k.keyword.toLowerCase())
+                        );
+
+                        await db
+                            .update(transactions)
+                            .set({ categoryId: match ? match.categoryId : null })
+                            .where(eq(transactions.id, t.id));
+                    }
+                }
+            }
+
             return { success: true };
         } catch (e) {
             console.error('Delete keyword failed:', e);

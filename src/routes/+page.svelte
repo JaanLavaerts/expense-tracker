@@ -293,7 +293,9 @@
     </Sidebar.Content>
   </Sidebar.Root>
 
-  <div class="container mx-auto py-6 space-y-4">
+  <div
+    class="container mx-auto py-6 space-y-4 md:peer-data-[state=expanded]:pl-6 md:transition-[padding]"
+  >
     <div class="flex justify-between items-center">
       <div>
         <div class="flex items-center gap-2">
@@ -692,24 +694,16 @@
                   </div>
                   <div class="flex flex-wrap gap-1">
                     {#each c.keywords as k}
-                      <div
-                        class="flex items-center gap-1 text-[10px] bg-white dark:bg-black px-1.5 py-0.5 rounded border text-muted-foreground group"
-                      >
-                        <span>{k.keyword}</span>
-                        <form
-                          method="POST"
-                          action="?/deleteKeyword"
-                          use:enhance
-                          class="contents"
+                      <form method="POST" action="?/deleteKeyword" use:enhance>
+                        <input type="hidden" name="id" value={k.id} />
+                        <button
+                          type="submit"
+                          class="inline-flex items-center text-[10px] bg-white dark:bg-black px-1.5 py-0.5 rounded border text-muted-foreground max-w-full truncate hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+                          title={`Remove keyword "${k.keyword}"`}
                         >
-                          <input type="hidden" name="id" value={k.id} />
-                          <button
-                            type="submit"
-                            class="ml-1 text-red-400 hover:text-red-600 font-bold cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                            >×</button
-                          >
-                        </form>
-                      </div>
+                          {k.keyword}
+                        </button>
+                      </form>
                     {/each}
                     {#if c.keywords.length === 0}
                       <span class="text-[10px] italic text-muted-foreground"
