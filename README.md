@@ -36,3 +36,38 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Docker
+
+Build the container image:
+
+```sh
+docker build -t expense-tracker .
+```
+
+Run the container (exposes the app on http://localhost:4173):
+
+```sh
+docker run --rm -p 4173:4173 --name expense-tracker expense-tracker
+```
+
+The SQLite database file `sqlite.db` lives inside the container in `/app`. If you want to persist it on the host, you can bind-mount a folder:
+
+````sh
+docker run --rm -p 4173:4173 \
+	-v $(pwd)/sqlite.db:/app/sqlite.db \
+	--name expense-tracker expense-tracker
+
+### Docker Compose
+
+You can also use Docker Compose (this uses named volumes to persist the database and uploads):
+
+```sh
+docker compose up --build
+````
+
+Then open http://localhost:4173.
+
+```
+
+```
