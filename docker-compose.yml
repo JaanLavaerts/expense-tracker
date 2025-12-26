@@ -7,6 +7,5 @@ services:
     ports:
       - '4173:4173'
     volumes:
-      - ./app/sqlite.db:/app/sqlite.db
       - ./app/data:/app/data
     restart: unless-stopped
