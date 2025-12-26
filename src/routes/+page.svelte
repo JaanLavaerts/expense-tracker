@@ -246,7 +246,6 @@
               name="file"
               accept=".csv"
               maxFiles={1}
-              onUpload={async (_files) => {}}
               class="h-24 text-xs"
             >
               <span class="text-xs text-muted-foreground">
